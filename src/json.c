@@ -247,7 +247,8 @@ SERIALIZATION(xcb_rectangle,
 
 SERIALIZATION(icccm_props,
 	BOOLEAN("takeFocus", obj->take_focus),
-	BOOLEAN("inputHint", obj->input_hint)
+	BOOLEAN("inputHint", obj->input_hint),
+	BOOLEAN("deleteWindow", obj->delete_window)
 )
 
 SERIALIZATION(client,
@@ -284,18 +285,24 @@ SERIALIZATION(presel,
 	INTEGER("feedback", xcb_window_t, obj->feedback)
 )
 
+SERIALIZATION(constraints,
+	INTEGER("min_width", uint16_t, obj->min_height),
+	INTEGER("min_height", uint16_t, obj->min_width)
+)
+
 SERIALIZATION(node,
 	INTEGER("id", uint32_t, obj->id),
 	ENUM("splitType", split_type_type, obj->split_type),
 	REAL("splitRatio", double, obj->split_ratio),
-	INTEGER("birthRotation", int, obj->birth_rotation),
 	POINTER_NULLABLE("presel", presel_type, obj->presel),
 	OBJECT("rectangle", rectangle, xcb_rectangle_t, xcb_rectangle_type, obj->rectangle),
+	OBJECT("constraints", constraints, constraints_t, constraints_type, obj->constraints),
 	BOOLEAN("vacant", obj->vacant),
 	BOOLEAN("hidden", obj->hidden),
 	BOOLEAN("sticky", obj->sticky),
 	BOOLEAN("private", obj->private),
 	BOOLEAN("locked", obj->locked),
+	BOOLEAN("marked", obj->marked),
 	POINTER_NULLABLE("firstChild", node_type, obj->first_child),
 	POINTER_NULLABLE("secondChild", node_type, obj->second_child),
 	// parent
@@ -328,6 +335,7 @@ SERIALIZATION(desktop,
 	STRING("name", obj->name),
 	INTEGER("id", uint32_t, obj->id),
 	ENUM("layout", layout_type, obj->layout),
+	ENUM("userLayout", layout_type, obj->user_layout),
 	POINTER_NULLABLE("root", node_type, obj->root),
 	POINTER_NULLABLE("focusId", node_id, obj->focus),
 	POINTER_NULLABLE("prevName", desktop_name, obj->prev),
