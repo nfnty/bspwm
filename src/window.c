@@ -40,6 +40,7 @@
 #include "tree.h"
 #include "parse.h"
 #include "window.h"
+#include "json.h"
 
 void schedule_window(xcb_window_t win)
 {

@@ -35,6 +35,7 @@
 #include "events.h"
 #include "window.h"
 #include "pointer.h"
+#include "json.h"
 
 void pointer_init(void)
 {
@@ -298,8 +299,6 @@ void track_pointer(coordinates_t loc, pointer_action_t pac, xcb_point_t pos)
 		return;
 	}
 
-	xcb_rectangle_t r = get_rectangle(NULL, NULL, n);
-
 	if (exists_subscriber(SBSC_MASK_NODE_GEOMETRY))
 		put_status(SBSC_MASK_NODE_GEOMETRY, json_serialize_status_node(loc.monitor, loc.desktop, loc.node));
 
@@ -310,7 +309,6 @@ void track_pointer(coordinates_t loc, pointer_action_t pac, xcb_point_t pos)
 			if (f == n || f->client == NULL || !IS_TILED(f->client)) {
 				continue;
 			}
-			xcb_rectangle_t r = f->client->tiled_rectangle;
 			if (exists_subscriber(SBSC_MASK_NODE_GEOMETRY))
 				put_status(SBSC_MASK_NODE_GEOMETRY, json_serialize_status_node(loc.monitor, loc.desktop, f));
 		}

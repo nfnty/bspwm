@@ -30,6 +30,8 @@
 #include <poll.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <time.h>
+#include <string.h>
 #include "helpers.h"
 #include "common.h"
 
