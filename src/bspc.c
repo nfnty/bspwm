@@ -62,6 +62,15 @@ int main(int argc, char *argv[])
 		free(host);
 	}
 
+	if (streq("--wait", *(argv + 1))) {
+		argc--, argv++;
+		struct timespec sleep_time;
+		sleep_time.tv_sec = 0;
+		sleep_time.tv_nsec = 10000000L;
+		struct stat stat_buffer;
+		while (stat(sock_address.sun_path, &stat_buffer) < 0)
+			nanosleep(&sleep_time, NULL);
+	}
 	if (connect(sock_fd, (struct sockaddr *) &sock_address, sizeof(sock_address)) == -1) {
 		err("Failed to connect to the socket.\n");
 	}

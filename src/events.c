@@ -171,7 +171,8 @@ void configure_request(xcb_generic_event_t *evt)
 
 		window_move_resize(e->window, r.x, r.y, r.width, r.height);
 
-		put_status(SBSC_MASK_NODE_GEOMETRY, "node_geometry 0x%08X 0x%08X 0x%08X %ux%u+%i+%i\n", loc.monitor->id, loc.desktop->id, e->window, r.width, r.height, r.x, r.y);
+		if (exists_subscriber(SBSC_MASK_NODE_GEOMETRY))
+			put_status(SBSC_MASK_NODE_GEOMETRY, json_serialize_status_node(loc.monitor, loc.desktop, loc.node));
 
 		monitor_t *m = monitor_from_client(c);
 		if (m != loc.monitor) {

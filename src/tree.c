@@ -131,7 +131,8 @@ void apply_layout(monitor_t *m, desktop_t *d, node_t *n, xcb_rectangle_t rect, x
 		if (!rect_eq(r, cr)) {
 			window_move_resize(n->id, r.x, r.y, r.width, r.height);
 			if (!grabbing) {
-				put_status(SBSC_MASK_NODE_GEOMETRY, "node_geometry 0x%08X 0x%08X 0x%08X %ux%u+%i+%i\n", m->id, d->id, n->id, r.width, r.height, r.x, r.y);
+				if (exists_subscriber(SBSC_MASK_NODE_GEOMETRY))
+					put_status(SBSC_MASK_NODE_GEOMETRY, json_serialize_status_node(m, d, n));
 			}
 		}
 
@@ -205,7 +206,8 @@ void presel_dir(monitor_t *m, desktop_t *d, node_t *n, direction_t dir)
 
 	n->presel->split_dir = dir;
 
-	put_status(SBSC_MASK_NODE_PRESEL, "node_presel 0x%08X 0x%08X 0x%08X dir %s\n", m->id, d->id, n->id, SPLIT_DIR_STR(dir));
+	if (exists_subscriber(SBSC_MASK_NODE_PRESEL))
+		put_status(SBSC_MASK_NODE_PRESEL, json_serialize_status_node(m, d, n));
 }
 
 void presel_ratio(monitor_t *m, desktop_t *d, node_t *n, double ratio)
@@ -216,7 +218,8 @@ void presel_ratio(monitor_t *m, desktop_t *d, node_t *n, double ratio)
 
 	n->presel->split_ratio = ratio;
 
-	put_status(SBSC_MASK_NODE_PRESEL, "node_presel 0x%08X 0x%08X 0x%08X ratio %lf\n", m->id, d->id, n->id, ratio);
+	if (exists_subscriber(SBSC_MASK_NODE_PRESEL))
+		put_status(SBSC_MASK_NODE_PRESEL, json_serialize_status_node(m, d, n));
 }
 
 void cancel_presel(monitor_t *m, desktop_t *d, node_t *n)
@@ -232,7 +235,8 @@ void cancel_presel(monitor_t *m, desktop_t *d, node_t *n)
 	free(n->presel);
 	n->presel = NULL;
 
-	put_status(SBSC_MASK_NODE_PRESEL, "node_presel 0x%08X 0x%08X 0x%08X cancel\n", m->id, d->id, n->id);
+	if (exists_subscriber(SBSC_MASK_NODE_PRESEL))
+		put_status(SBSC_MASK_NODE_PRESEL, json_serialize_status_node(m, d, n));
 }
 
 void cancel_presel_in(monitor_t *m, desktop_t *d, node_t *n)
@@ -482,15 +486,14 @@ bool activate_node(monitor_t *m, desktop_t *d, node_t *n)
 	}
 
 	d->focus = n;
-	history_add(m, d, n, false);
-
-	put_status(SBSC_MASK_REPORT);
+	history_add(m, d, n);
 
 	if (n == NULL) {
 		return true;
 	}
 
-	put_status(SBSC_MASK_NODE_ACTIVATE, "node_activate 0x%08X 0x%08X 0x%08X\n", m->id, d->id, n->id);
+	if (exists_subscriber(SBSC_MASK_NODE_ACTIVATE))
+		put_status(SBSC_MASK_NODE_ACTIVATE, json_serialize_status_node(m, d, n));
 
 	return true;
 }
@@ -613,16 +616,14 @@ bool focus_node(monitor_t *m, desktop_t *d, node_t *n)
 	ewmh_update_active_window();
 	history_add(m, d, n, true);
 
-	put_status(SBSC_MASK_REPORT);
-
 	if (n == NULL) {
 		if (focus_follows_pointer) {
 			update_motion_recorder();
 		}
+		if (exists_subscriber(SBSC_MASK_NODE_FOCUS))
+			put_status(SBSC_MASK_NODE_FOCUS, json_serialize_status_node_nullable(m, d, n));
 		return true;
 	}
-
-	put_status(SBSC_MASK_NODE_FOCUS, "node_focus 0x%08X 0x%08X 0x%08X\n", m->id, d->id, n->id);
 
 	stack(d, n, true);
 	set_input_focus(n);
@@ -632,6 +633,9 @@ bool focus_node(monitor_t *m, desktop_t *d, node_t *n)
 	} else if (focus_follows_pointer) {
 		update_motion_recorder();
 	}
+
+	if (exists_subscriber(SBSC_MASK_NODE_FOCUS))
+		put_status(SBSC_MASK_NODE_FOCUS, json_serialize_status_node(m, d, n));
 
 	return true;
 }
@@ -1371,8 +1375,6 @@ bool swap_nodes(monitor_t *m1, desktop_t *d1, node_t *n1, monitor_t *m2, desktop
 		return false;
 	}
 
-	put_status(SBSC_MASK_NODE_SWAP, "node_swap 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", m1->id, d1->id, n1->id, m2->id, d2->id, n2->id);
-
 	node_t *pn1 = n1->parent;
 	node_t *pn2 = n2->parent;
 	bool n1_first_child = is_first_child(n1);
@@ -1492,6 +1494,9 @@ bool swap_nodes(monitor_t *m1, desktop_t *d1, node_t *n1, monitor_t *m2, desktop
 		arrange(m2, d2);
 	}
 
+	if (exists_subscriber(SBSC_MASK_NODE_SWAP))
+		put_status(SBSC_MASK_NODE_SWAP, json_serialize_status_node_swap(m1, d1, n1, m2, d2, n2));
+
 	return true;
 }
 
@@ -1504,8 +1509,6 @@ bool transfer_node(monitor_t *ms, desktop_t *ds, node_t *ns, monitor_t *md, desk
 	if (sticky_still && ms->sticky_count > 0 && sticky_count(ns) > 0 && dd != md->desk) {
 		return false;
 	}
-
-	put_status(SBSC_MASK_NODE_TRANSFER, "node_transfer 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", ms->id, ds->id, ns->id, md->id, dd->id, nd!=NULL?nd->id:0);
 
 	bool held_focus = is_descendant(ds->focus, ns);
 	/* avoid ending up with a dangling pointer (because of unlink_node) */
@@ -1590,6 +1593,9 @@ bool transfer_node(monitor_t *ms, desktop_t *ds, node_t *ns, monitor_t *md, desk
 	if (ds != dd) {
 		arrange(md, dd);
 	}
+
+	if (exists_subscriber(SBSC_MASK_NODE_TRANSFER))
+		put_status(SBSC_MASK_NODE_TRANSFER, json_serialize_status_node_transfer(ms, ds, ns, md, dd));
 
 	return true;
 }
@@ -1741,13 +1747,14 @@ bool set_layer(monitor_t *m, desktop_t *d, node_t *n, stack_layer_t l)
 
 	ewmh_wm_state_update(n);
 
-	put_status(SBSC_MASK_NODE_LAYER, "node_layer 0x%08X 0x%08X 0x%08X %s\n", m->id, d->id, n->id, LAYER_STR(l));
-
 	if (d->focus == n) {
 		neutralize_occluding_windows(m, d, n);
 	}
 
 	stack(d, n, (d->focus == n));
+
+	if (exists_subscriber(SBSC_MASK_NODE_LAYER))
+		put_status(SBSC_MASK_NODE_LAYER, json_serialize_status_node(m, d, n));
 
 	return true;
 }
@@ -1777,8 +1784,6 @@ bool set_state(monitor_t *m, desktop_t *d, node_t *n, client_state_t s)
 			break;
 	}
 
-	put_status(SBSC_MASK_NODE_STATE, "node_state 0x%08X 0x%08X 0x%08X %s off\n", m->id, d->id, n->id, STATE_STR(c->last_state));
-
 	switch (c->state) {
 		case STATE_TILED:
 		case STATE_PSEUDO_TILED:
@@ -1791,11 +1796,8 @@ bool set_state(monitor_t *m, desktop_t *d, node_t *n, client_state_t s)
 			break;
 	}
 
-	put_status(SBSC_MASK_NODE_STATE, "node_state 0x%08X 0x%08X 0x%08X %s on\n", m->id, d->id, n->id, STATE_STR(c->state));
-
-	if (n == m->desk->focus) {
-		put_status(SBSC_MASK_REPORT);
-	}
+	if (exists_subscriber(SBSC_MASK_NODE_STATE))
+		put_status(SBSC_MASK_NODE_STATE, json_serialize_status_node(m, d, n));
 
 	if (single_monocle && was_tiled != IS_TILED(c)) {
 		if (was_tiled && d->layout != LAYOUT_MONOCLE && tiled_count(d->root, true) <= 1) {
@@ -1918,7 +1920,8 @@ void set_hidden(monitor_t *m, desktop_t *d, node_t *n, bool value)
 	propagate_hidden_downward(m, d, n, value);
 	propagate_hidden_upward(m, d, n);
 
-	put_status(SBSC_MASK_NODE_FLAG, "node_flag 0x%08X 0x%08X 0x%08X hidden %s\n", m->id, d->id, n->id, ON_OFF_STR(value));
+	if (exists_subscriber(SBSC_MASK_NODE_FLAG))
+		put_status(SBSC_MASK_NODE_FLAG, json_serialize_status_node(m, d, n));
 
 	if (held_focus || d->focus == NULL) {
 		if (d->focus != NULL) {
@@ -2022,11 +2025,8 @@ void set_sticky(monitor_t *m, desktop_t *d, node_t *n, bool value)
 		ewmh_wm_state_update(n);
 	}
 
-	put_status(SBSC_MASK_NODE_FLAG, "node_flag 0x%08X 0x%08X 0x%08X sticky %s\n", m->id, d->id, n->id, ON_OFF_STR(value));
-
-	if (n == m->desk->focus) {
-		put_status(SBSC_MASK_REPORT);
-	}
+	if (exists_subscriber(SBSC_MASK_NODE_FLAG))
+		put_status(SBSC_MASK_NODE_FLAG, json_serialize_status_node(m, d, n));
 }
 
 void set_private(monitor_t *m, desktop_t *d, node_t *n, bool value)
@@ -2037,11 +2037,8 @@ void set_private(monitor_t *m, desktop_t *d, node_t *n, bool value)
 
 	n->private = value;
 
-	put_status(SBSC_MASK_NODE_FLAG, "node_flag 0x%08X 0x%08X 0x%08X private %s\n", m->id, d->id, n->id, ON_OFF_STR(value));
-
-	if (n == m->desk->focus) {
-		put_status(SBSC_MASK_REPORT);
-	}
+	if (exists_subscriber(SBSC_MASK_NODE_FLAG))
+		put_status(SBSC_MASK_NODE_FLAG, json_serialize_status_node(m, d, n));
 }
 
 void set_locked(monitor_t *m, desktop_t *d, node_t *n, bool value)
@@ -2052,11 +2049,8 @@ void set_locked(monitor_t *m, desktop_t *d, node_t *n, bool value)
 
 	n->locked = value;
 
-	put_status(SBSC_MASK_NODE_FLAG, "node_flag 0x%08X 0x%08X 0x%08X locked %s\n", m->id, d->id, n->id, ON_OFF_STR(value));
-
-	if (n == m->desk->focus) {
-		put_status(SBSC_MASK_REPORT);
-	}
+	if (exists_subscriber(SBSC_MASK_NODE_FLAG))
+		put_status(SBSC_MASK_NODE_FLAG, json_serialize_status_node(m, d, n));
 }
 
 void set_marked(monitor_t *m, desktop_t *d, node_t *n, bool value)
@@ -2067,11 +2061,8 @@ void set_marked(monitor_t *m, desktop_t *d, node_t *n, bool value)
 
 	n->marked = value;
 
-	put_status(SBSC_MASK_NODE_FLAG, "node_flag 0x%08X 0x%08X 0x%08X marked %s\n", m->id, d->id, n->id, ON_OFF_STR(value));
-
-	if (n == m->desk->focus) {
-		put_status(SBSC_MASK_REPORT);
-	}
+	if (exists_subscriber(SBSC_MASK_NODE_FLAG))
+		put_status(SBSC_MASK_NODE_FLAG, json_serialize_status_node(m, d, n));
 }
 
 void set_urgent(monitor_t *m, desktop_t *d, node_t *n, bool value)
@@ -2090,8 +2081,8 @@ void set_urgent(monitor_t *m, desktop_t *d, node_t *n, bool value)
 
 	ewmh_wm_state_update(n);
 
-	put_status(SBSC_MASK_NODE_FLAG, "node_flag 0x%08X 0x%08X 0x%08X urgent %s\n", m->id, d->id, n->id, ON_OFF_STR(value));
-	put_status(SBSC_MASK_REPORT);
+	if (exists_subscriber(SBSC_MASK_NODE_FLAG))
+		put_status(SBSC_MASK_NODE_FLAG, json_serialize_status_node(m, d, n));
 }
 
 xcb_rectangle_t get_rectangle(monitor_t *m, desktop_t *d, node_t *n)

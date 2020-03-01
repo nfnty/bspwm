@@ -38,6 +38,8 @@
 #include "subscribe.h"
 #include "window.h"
 #include "monitor.h"
+#include "json.h"
+#include "string.h"
 
 monitor_t *make_monitor(const char *name, xcb_rectangle_t *rect, uint32_t id)
 {
@@ -81,8 +83,8 @@ void update_root(monitor_t *m, xcb_rectangle_t *rect)
 		}
 	} else {
 		window_move_resize(m->root, rect->x, rect->y, rect->width, rect->height);
-		put_status(SBSC_MASK_MONITOR_GEOMETRY, "monitor_geometry 0x%08X %ux%u+%i+%i\n",
-		           m->id, rect->width, rect->height, rect->x, rect->y);
+		if (exists_subscriber(SBSC_MASK_MONITOR_GEOMETRY))
+			put_status(SBSC_MASK_MONITOR_GEOMETRY, json_serialize_monitor_type(m));
 	}
 	for (desktop_t *d = m->desk_head; d != NULL; d = d->next) {
 		for (node_t *n = first_extrema(d->root); n != NULL; n = next_leaf(n, d->root)) {
@@ -115,12 +117,14 @@ void reorder_monitor(monitor_t *m)
 
 void rename_monitor(monitor_t *m, const char *name)
 {
-	put_status(SBSC_MASK_MONITOR_RENAME, "monitor_rename 0x%08X %s %s\n", m->id, m->name, name);
+	char name_last[SMALEN];
+	strcpy(name_last, m->name);
 
 	snprintf(m->name, sizeof(m->name), "%s", name);
 	xcb_icccm_set_wm_name(dpy, m->root, XCB_ATOM_STRING, 8, strlen(m->name), m->name);
 
-	put_status(SBSC_MASK_REPORT);
+	if (exists_subscriber(SBSC_MASK_MONITOR_RENAME))
+		put_status(SBSC_MASK_MONITOR_RENAME, json_serialize_status_monitor_rename(m, name_last));
 }
 
 monitor_t *find_monitor(uint32_t id)
@@ -208,13 +212,12 @@ void focus_monitor(monitor_t *m)
 		center_pointer(m->rectangle);
 	}
 
-	put_status(SBSC_MASK_MONITOR_FOCUS, "monitor_focus 0x%08X\n", m->id);
+	if (exists_subscriber(SBSC_MASK_MONITOR_FOCUS))
+		put_status(SBSC_MASK_MONITOR_FOCUS, json_serialize_monitor_type(m));
 }
 
 void add_monitor(monitor_t *m)
 {
-	xcb_rectangle_t r = m->rectangle;
-
 	if (mon == NULL) {
 		mon = m;
 		mon_head = m;
@@ -241,9 +244,8 @@ void add_monitor(monitor_t *m)
 		}
 	}
 
-	put_status(SBSC_MASK_MONITOR_ADD, "monitor_add 0x%08X %s %ux%u+%i+%i\n", m->id, m->name, r.width, r.height, r.x, r.y);
-
-	put_status(SBSC_MASK_REPORT);
+	if (exists_subscriber(SBSC_MASK_MONITOR_ADD))
+		put_status(SBSC_MASK_MONITOR_ADD, json_serialize_monitor_type(m));
 }
 
 void unlink_monitor(monitor_t *m)
@@ -278,7 +280,12 @@ void unlink_monitor(monitor_t *m)
 
 void remove_monitor(monitor_t *m)
 {
-	put_status(SBSC_MASK_MONITOR_REMOVE, "monitor_remove 0x%08X\n", m->id);
+	bool put_status_bool = false;
+	json_t *json;
+	if (exists_subscriber(SBSC_MASK_MONITOR_REMOVE)) {
+		json = json_serialize_monitor_type(m);
+		put_status_bool = true;
+	}
 
 	while (m->desk_head != NULL) {
 		remove_desktop(m, m->desk_head);
@@ -294,7 +301,8 @@ void remove_monitor(monitor_t *m)
 		focus_node(NULL, NULL, NULL);
 	}
 
-	put_status(SBSC_MASK_REPORT);
+	if (put_status_bool)
+		put_status(SBSC_MASK_MONITOR_REMOVE, json);
 }
 
 void merge_monitors(monitor_t *ms, monitor_t *md)
@@ -316,8 +324,6 @@ bool swap_monitors(monitor_t *m1, monitor_t *m2)
 	if (m1 == NULL || m2 == NULL || m1 == m2) {
 		return false;
 	}
-
-	put_status(SBSC_MASK_MONITOR_SWAP, "monitor_swap 0x%08X 0x%08X\n", m1->id, m2->id);
 
 	if (mon_head == m1) {
 		mon_head = m2;
@@ -358,7 +364,9 @@ bool swap_monitors(monitor_t *m1, monitor_t *m2)
 	ewmh_update_desktop_viewport();
 	ewmh_update_current_desktop();
 
-	put_status(SBSC_MASK_REPORT);
+	if (exists_subscriber(SBSC_MASK_MONITOR_SWAP))
+		put_status(SBSC_MASK_MONITOR_SWAP, json_serialize_status_monitor_swap(m1, m2));
+
 	return true;
 }
 

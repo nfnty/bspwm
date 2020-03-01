@@ -35,13 +35,13 @@
 #include "pointer.h"
 #include "query.h"
 #include "rule.h"
-#include "restore.h"
 #include "settings.h"
 #include "tree.h"
 #include "window.h"
 #include "common.h"
 #include "parse.h"
 #include "messages.h"
+#include "json.h"
 
 void handle_message(char *msg, int msg_len, FILE *rsp)
 {
@@ -858,7 +858,6 @@ void cmd_monitor(char **args, int num, FILE *rsp)
 				d = d->next;
 				num--, args++;
 			}
-			put_status(SBSC_MASK_REPORT);
 			while (num > 0) {
 				add_desktop(trg.monitor, make_desktop(*args, XCB_NONE));
 				num--, args++;
@@ -944,181 +943,146 @@ void cmd_query(char **args, int num, FILE *rsp)
 {
 	coordinates_t ref = {mon, mon->desk, mon->desk->focus};
 	coordinates_t trg = {NULL, NULL, NULL};
-	monitor_select_t *monitor_sel = NULL;
-	desktop_select_t *desktop_sel = NULL;
-	node_select_t *node_sel = NULL;
-	domain_t dom = DOMAIN_TREE;
-	bool print_ids = true;
-	uint8_t d = 0;
+	domain_t dom;
+	bool constrained = false;
 
-	if (num < 1) {
-		fail(rsp, "query: Missing arguments.\n");
+	if (streq("-N", *args) || streq("--nodes", *args)) {
+		dom = DOMAIN_NODES;
+	} else if (streq("-n", *args) || streq("--node", *args)) {
+		dom = DOMAIN_NODE;
+		if (num >= 2 && *(args + 1)[0] != OPT_CHR) {
+			--num, ++args;
+			if (node_from_desc(*args, &ref, &trg) != SELECTOR_OK) {
+				fail(rsp, "query: Unknown node: '%s'.\n", *args);
+				return;
+			}
+		} else {
+			trg = ref;
+		}
+		constrained = true;
+	} else if (streq("-D", *args) || streq("--desktops", *args)) {
+		dom = DOMAIN_DESKTOPS;
+	} else if (streq("-d", *args) || streq("--desktop", *args)) {
+		dom = DOMAIN_DESKTOP;
+		if (num >= 2 && *(args + 1)[0] != OPT_CHR) {
+			--num, ++args;
+			if (desktop_from_desc(*args, &ref, &trg) != SELECTOR_OK) {
+				fail(rsp, "query: Unknown desktop: '%s'.\n", *args);
+				return;
+			}
+		} else {
+			trg = ref;
+		}
+		constrained = true;
+	} else if (streq("-M", *args) || streq("--monitors", *args)) {
+		dom = DOMAIN_MONITORS;
+	} else if (streq("-m", *args) || streq("--monitor", *args)) {
+		dom = DOMAIN_MONITOR;
+		if (num >= 2 && *(args + 1)[0] != OPT_CHR) {
+			--num, ++args;
+			if (monitor_from_desc(*args, &ref, &trg) != SELECTOR_OK) {
+				fail(rsp, "query: Unknown monitor: '%s'.\n", *args);
+				return;
+			}
+		} else {
+			trg = ref;
+		}
+		constrained = true;
+	} else if (streq("-T", *args) || streq("--tree", *args)) {
+		dom = DOMAIN_TREE;
+	} else if (streq("-H", *args) || streq("--history", *args)) {
+		dom = DOMAIN_HISTORY;
+	} else if (streq("-S", *args) || streq("--stack", *args)) {
+		dom = DOMAIN_STACK;
+		constrained = true;
+	} else {
+		fail(rsp, "query: Unknown domain.\n");
 		return;
 	}
+	--num, ++args;
 
 	while (num > 0) {
-		if (streq("-T", *args) || streq("--tree", *args)) {
-			dom = DOMAIN_TREE, d++;
-		} else if (streq("-M", *args) || streq("--monitors", *args)) {
-			dom = DOMAIN_MONITOR, d++;
-			if (num > 1 && *(args + 1)[0] != OPT_CHR) {
-				num--, args++;
-				int ret;
-				coordinates_t tmp = ref;
-				if ((ret = monitor_from_desc(*args, &tmp, &ref)) != SELECTOR_OK) {
-					handle_failure(ret, "query -M", *args, rsp);
-					goto end;
-				}
-			}
-		} else if (streq("-D", *args) || streq("--desktops", *args)) {
-			dom = DOMAIN_DESKTOP, d++;
-			if (num > 1 && *(args + 1)[0] != OPT_CHR) {
-				num--, args++;
-				int ret;
-				coordinates_t tmp = ref;
-				if ((ret = desktop_from_desc(*args, &tmp, &ref)) != SELECTOR_OK) {
-					handle_failure(ret, "query -D", *args, rsp);
-					goto end;
-				}
-			}
-		} else if (streq("-N", *args) || streq("--nodes", *args)) {
-			dom = DOMAIN_NODE, d++;
-			if (num > 1 && *(args + 1)[0] != OPT_CHR) {
-				num--, args++;
-				int ret;
-				coordinates_t tmp = ref;
-				if ((ret = node_from_desc(*args, &tmp, &ref)) != SELECTOR_OK) {
-					handle_failure(ret, "query -N", *args, rsp);
-					goto end;
-				}
-			}
-		} else if (streq("-m", *args) || streq("--monitor", *args)) {
-			if (num > 1 && *(args + 1)[0] != OPT_CHR) {
-				num--, args++;
-				int ret;
-				if ((*args)[0] == '.') {
-					free(monitor_sel);
-					monitor_sel = malloc(sizeof(monitor_select_t));
-					*monitor_sel = make_monitor_select();
-					char *desc = copy_string(*args, strlen(*args));
-					if (!parse_monitor_modifiers(desc, monitor_sel)) {
-						handle_failure(SELECTOR_BAD_MODIFIERS, "query -m", *args, rsp);
-						free(desc);
-						goto end;
-					}
-					free(desc);
-				} else if ((ret = monitor_from_desc(*args, &ref, &trg)) != SELECTOR_OK) {
-					handle_failure(ret, "query -m", *args, rsp);
-					goto end;
-				}
-			} else {
-				trg.monitor = ref.monitor;
-			}
-		} else if (streq("-d", *args) || streq("--desktop", *args)) {
-			if (num > 1 && *(args + 1)[0] != OPT_CHR) {
-				num--, args++;
-				int ret;
-				if ((*args)[0] == '.') {
-					free(desktop_sel);
-					desktop_sel = malloc(sizeof(desktop_select_t));
-					*desktop_sel = make_desktop_select();
-					char *desc = copy_string(*args, strlen(*args));
-					if (!parse_desktop_modifiers(desc, desktop_sel)) {
-						handle_failure(SELECTOR_BAD_MODIFIERS, "query -d", *args, rsp);
-						free(desc);
-						goto end;
-					}
-					free(desc);
-				} else if ((ret = desktop_from_desc(*args, &ref, &trg)) != SELECTOR_OK) {
-					handle_failure(ret, "query -d", *args, rsp);
-					goto end;
-				}
-			} else {
-				trg.monitor = ref.monitor;
-				trg.desktop = ref.desktop;
-			}
-		} else if (streq("-n", *args) || streq("--node", *args)) {
-			if (num > 1 && *(args + 1)[0] != OPT_CHR) {
-				num--, args++;
-				int ret;
-				if ((*args)[0] == '.') {
-					free(node_sel);
-					node_sel = malloc(sizeof(node_select_t));
-					*node_sel = make_node_select();
-					char *desc = copy_string(*args, strlen(*args));
-					if (!parse_node_modifiers(desc, node_sel)) {
-						handle_failure(SELECTOR_BAD_MODIFIERS, "query -n", *args, rsp);
-						free(desc);
-						goto end;
-					}
-					free(desc);
-				} else if ((ret = node_from_desc(*args, &ref, &trg)) != SELECTOR_OK) {
-					handle_failure(ret, "query -n", *args, rsp);
-					goto end;
+		if (!constrained && (streq("-n", *args) || streq("--node", *args))) {
+			if (num >= 2 && *(args + 1)[0] != OPT_CHR) {
+				--num, ++args;
+				if (node_from_desc(*args, &ref, &trg) != SELECTOR_OK) {
+					fail(rsp, "query: Unknown node: '%s'.\n", *args);
+					return;
 				}
 			} else {
 				trg = ref;
-				if (ref.node == NULL) {
-					fail(rsp, "");
-					goto end;
-				}
 			}
-		} else if (streq("--names", *args)) {
-			print_ids = false;
+			constrained = true;
+		} else if (!constrained && (streq("-d", *args) || streq("--desktop", *args))) {
+			if (num >= 2 && *(args + 1)[0] != OPT_CHR) {
+				--num, ++args;
+				if (desktop_from_desc(*args, &ref, &trg) != SELECTOR_OK) {
+					fail(rsp, "query: Unknown desktop: '%s'.\n", *args);
+					return;
+				}
+			} else {
+				trg = ref;
+			}
+			constrained = true;
+		} else if (!constrained && (streq("-m", *args) || streq("--monitor", *args))) {
+			if (num >= 2 && *(args + 1)[0] != OPT_CHR) {
+				--num, ++args;
+				if (monitor_from_desc(*args, &ref, &trg) != SELECTOR_OK) {
+					fail(rsp, "query: Unknown monitor: '%s'.\n", *args);
+					return;
+				}
+			} else {
+				trg = ref;
+			}
+			constrained = true;
 		} else {
-			fail(rsp, "query: Unknown option: '%s'.\n", *args);
-			goto end;
+			fail(rsp, "query: Unknown option.\n");
+			return;
 		}
-		num--, args++;
+		--num, ++args;
 	}
 
-	if (d < 1) {
-		fail(rsp, "query: No commands given.\n");
-		goto end;
+	json_t *json;
+	switch (dom) {
+		case DOMAIN_NODES:
+			json = json_serialize_query_windows(trg);
+			break;
+		case DOMAIN_NODE:
+			json = json_serialize_query_window(trg);
+			break;
+		case DOMAIN_DESKTOPS:
+			json = json_serialize_query_desktops(trg);
+			break;
+		case DOMAIN_DESKTOP:
+			json = json_serialize_query_desktop(trg);
+			break;
+		case DOMAIN_MONITORS:
+			json = json_serialize_query_monitors(trg);
+			break;
+		case DOMAIN_MONITOR:
+			json = json_serialize_query_monitor(trg);
+			break;
+		case DOMAIN_TREE:
+			json = json_serialize_query_tree(trg);
+			break;
+		case DOMAIN_HISTORY:
+			json = json_serialize_query_history(trg);
+			break;
+		case DOMAIN_STACK:
+			json = json_serialize_query_stack();
+			break;
+		default:
+			fail(rsp, "query: Unknown domain.\n");
+			return;
 	}
 
-	if (d > 1) {
-		fail(rsp, "query: Multiple commands given.\n");
-		goto end;
-	}
-
-	if (dom == DOMAIN_TREE && trg.monitor == NULL) {
-		fail(rsp, "query -T: No options given.\n");
-		goto end;
-	}
-
-	if (!print_ids && (dom == DOMAIN_NODE || dom == DOMAIN_TREE)) {
-		fail(rsp, "query -%c: --names only applies to -M and -D.\n", dom == DOMAIN_NODE ? 'N' : 'T');
-		goto end;
-	}
-
-	if (dom == DOMAIN_NODE) {
-		if (query_node_ids(&ref, &trg, node_sel, rsp) < 1) {
-			fail(rsp, "");
-		}
-	} else if (dom == DOMAIN_DESKTOP) {
-		if (query_desktop_ids(&ref, &trg, desktop_sel, print_ids ? fprint_desktop_id : fprint_desktop_name, rsp) < 1) {
-			fail(rsp, "");
-		}
-	} else if (dom == DOMAIN_MONITOR) {
-		if (query_monitor_ids(&ref, &trg, monitor_sel, print_ids ? fprint_monitor_id : fprint_monitor_name, rsp) < 1) {
-			fail(rsp, "");
-		}
-	} else {
-		if (trg.node != NULL) {
-			query_node(trg.node, rsp);
-		} else if (trg.desktop != NULL) {
-			query_desktop(trg.desktop, rsp);
-		} else  {
-			query_monitor(trg.monitor, rsp);
-		}
-		fprintf(rsp, "\n");
-	}
-
-end:
-	free(monitor_sel);
-	free(desktop_sel);
-	free(node_sel);
+	if (json_dumpf(json, rsp, JSON_INDENT(4) | JSON_PRESERVE_ORDER) == -1){
+		fail(rsp, "query: JSON dump error.\n");
+		json_decref(json);
+		return;
+	};
+	fprintf(rsp, "\n");
+	json_decref(json);
 }
 
 void cmd_rule(char **args, int num, FILE *rsp)
@@ -1194,20 +1158,7 @@ void cmd_wm(char **args, int num, FILE *rsp)
 	}
 
 	while (num > 0) {
-		if (streq("-d", *args) || streq("--dump-state", *args)) {
-			query_state(rsp);
-			fprintf(rsp, "\n");
-		} else if (streq("-l", *args) || streq("--load-state", *args)) {
-			num--, args++;
-			if (num < 1) {
-				fail(rsp, "wm %s: Not enough arguments.\n", *(args - 1));
-				break;
-			}
-			if (!restore_state(*args)) {
-				fail(rsp, "");
-				break;
-			}
-		} else if (streq("-a", *args) || streq("--add-monitor", *args)) {
+		if (streq("-a", *args) || streq("--add-monitor", *args)) {
 			num--, args++;
 			if (num < 2) {
 				fail(rsp, "wm %s: Not enough arguments.\n", *(args - 1));
@@ -1245,8 +1196,6 @@ void cmd_wm(char **args, int num, FILE *rsp)
 			}
 		} else if (streq("-o", *args) || streq("--adopt-orphans", *args)) {
 			adopt_orphans();
-		} else if (streq("-g", *args) || streq("--get-status", *args)) {
-			print_report(rsp);
 		} else if (streq("-h", *args) || streq("--record-history", *args)) {
 			num--, args++;
 			if (num < 1) {
@@ -1272,70 +1221,26 @@ void cmd_wm(char **args, int num, FILE *rsp)
 	}
 }
 
-void cmd_subscribe(char **args, int num, FILE *rsp)
+int cmd_subscribe(char **args, int num, FILE *rsp)
 {
-	int field = 0;
-	int count = -1;
-	FILE *stream = rsp;
-	char *fifo_path = NULL;
-	subscriber_mask_t mask;
-
-	while (num > 0) {
-		if (streq("-c", *args) || streq("--count", *args)) {
+	unsigned int field = 0;
+	if (num < 1) {
+		field = SBSC_MASK_ALL;
+	} else {
+		subscriber_mask_t mask;
+		while (num > 0) {
+			if (parse_subscriber_mask(*args, &mask)) {
+				field |= mask;
+			} else {
+				fail(rsp, "subscribe: Invalid argument: '%s'.\n", *args);
+				return SUBSCRIBE_FAILURE;
+			}
 			num--, args++;
-			if (num < 1) {
-				fail(rsp, "subscribe %s: Not enough arguments.\n", *(args - 1));
-				goto failed;
-			}
-			if (sscanf(*args, "%i", &count) != 1 || count < 1) {
-				fail(rsp, "subscribe %s: Invalid argument: '%s'.\n", *(args - 1), *args);
-				goto failed;
-			}
-		} else if (streq("-f", *args) || streq("--fifo", *args)) {
-			fifo_path = mktempfifo(FIFO_TEMPLATE);
-			if (fifo_path == NULL) {
-				fail(rsp, "subscribe %s: Can't create FIFO.\n", *(args - 1));
-				goto failed;
-			}
-		} else if (parse_subscriber_mask(*args, &mask)) {
-			field |= mask;
-		} else {
-			fail(rsp, "subscribe: Invalid argument: '%s'.\n", *args);
-			goto failed;
-		}
-		num--, args++;
-	}
-
-	if (field == 0) {
-		field = SBSC_MASK_REPORT;
-	}
-
-	if (fifo_path) {
-		fprintf(rsp, "%s\n", fifo_path);
-		fflush(rsp);
-		fclose(rsp);
-
-		stream = fopen(fifo_path, "w");
-
-		if (stream == NULL) {
-			perror("subscribe: fopen");
-			goto free_fifo_path;
 		}
 	}
 
-	subscriber_list_t *sb = make_subscriber(stream, fifo_path, field, count);
-	add_subscriber(sb);
-	return;
-
-failed:
-	fflush(rsp);
-	fclose(rsp);
-
-free_fifo_path:
-	if (fifo_path) {
-		unlink(fifo_path);
-		free(fifo_path);
-	}
+	add_subscriber(rsp, field);
+	return SUBSCRIBE_SUCCESS;
 }
 
 void cmd_quit(char **args, int num, FILE *rsp)

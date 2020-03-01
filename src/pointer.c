@@ -238,14 +238,6 @@ bool grab_pointer(pointer_action_t pac)
 	}
 	free(reply);
 
-	if (pac == ACTION_MOVE) {
-		put_status(SBSC_MASK_POINTER_ACTION, "pointer_action 0x%08X 0x%08X 0x%08X move begin\n", loc.monitor->id, loc.desktop->id, loc.node->id);
-	} else if (pac == ACTION_RESIZE_CORNER) {
-		put_status(SBSC_MASK_POINTER_ACTION, "pointer_action 0x%08X 0x%08X 0x%08X resize_corner begin\n", loc.monitor->id, loc.desktop->id, loc.node->id);
-	} else if (pac == ACTION_RESIZE_SIDE) {
-		put_status(SBSC_MASK_POINTER_ACTION, "pointer_action 0x%08X 0x%08X 0x%08X resize_side begin\n", loc.monitor->id, loc.desktop->id, loc.node->id);
-	}
-
 	track_pointer(loc, pac, pos);
 
 	return true;
@@ -306,17 +298,10 @@ void track_pointer(coordinates_t loc, pointer_action_t pac, xcb_point_t pos)
 		return;
 	}
 
-	if (pac == ACTION_MOVE) {
-		put_status(SBSC_MASK_POINTER_ACTION, "pointer_action 0x%08X 0x%08X 0x%08X move end\n", loc.monitor->id, loc.desktop->id, n->id);
-	} else if (pac == ACTION_RESIZE_CORNER) {
-		put_status(SBSC_MASK_POINTER_ACTION, "pointer_action 0x%08X 0x%08X 0x%08X resize_corner end\n", loc.monitor->id, loc.desktop->id, n->id);
-	} else if (pac == ACTION_RESIZE_SIDE) {
-		put_status(SBSC_MASK_POINTER_ACTION, "pointer_action 0x%08X 0x%08X 0x%08X resize_side end\n", loc.monitor->id, loc.desktop->id, n->id);
-	}
-
 	xcb_rectangle_t r = get_rectangle(NULL, NULL, n);
 
-	put_status(SBSC_MASK_NODE_GEOMETRY, "node_geometry 0x%08X 0x%08X 0x%08X %ux%u+%i+%i\n", loc.monitor->id, loc.desktop->id, loc.node->id, r.width, r.height, r.x, r.y);
+	if (exists_subscriber(SBSC_MASK_NODE_GEOMETRY))
+		put_status(SBSC_MASK_NODE_GEOMETRY, json_serialize_status_node(loc.monitor, loc.desktop, loc.node));
 
 	if ((pac == ACTION_MOVE && IS_TILED(n->client)) ||
 	    ((pac == ACTION_RESIZE_CORNER || pac == ACTION_RESIZE_SIDE) &&
@@ -326,7 +311,8 @@ void track_pointer(coordinates_t loc, pointer_action_t pac, xcb_point_t pos)
 				continue;
 			}
 			xcb_rectangle_t r = f->client->tiled_rectangle;
-			put_status(SBSC_MASK_NODE_GEOMETRY, "node_geometry 0x%08X 0x%08X 0x%08X %ux%u+%i+%i\n", loc.monitor->id, loc.desktop->id, f->id, r.width, r.height, r.x, r.y);
+			if (exists_subscriber(SBSC_MASK_NODE_GEOMETRY))
+				put_status(SBSC_MASK_NODE_GEOMETRY, json_serialize_status_node(loc.monitor, loc.desktop, f));
 		}
 	}
 }

@@ -47,7 +47,6 @@
 #include "history.h"
 #include "ewmh.h"
 #include "rule.h"
-#include "restore.h"
 #include "query.h"
 #include "bspwm.h"
 
@@ -55,7 +54,6 @@ int main(int argc, char *argv[])
 {
 	fd_set descriptors;
 	char socket_path[MAXLEN];
-	char state_path[MAXLEN] = {0};
 	config_path[0] = '\0';
 	int sock_fd = -1, cli_fd, dpy_fd, max_fd, n;
 	struct sockaddr_un sock_address;
@@ -76,9 +74,6 @@ int main(int argc, char *argv[])
 				break;
 			case 'c':
 				snprintf(config_path, sizeof(config_path), "%s", optarg);
-				break;
-			case 's':
-				snprintf(state_path, sizeof(state_path), "%s", optarg);
 				break;
 			case 'o':
 				sock_fd = strtol(optarg, &end, 0);
@@ -106,11 +101,6 @@ int main(int argc, char *argv[])
 
 	load_settings();
 	setup();
-
-	if (state_path[0] != '\0') {
-		restore_state(state_path);
-		unlink(state_path);
-	}
 
 	dpy_fd = xcb_get_file_descriptor(dpy);
 
@@ -217,18 +207,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (restart) {
-		char *host = NULL;
-		int dn = 0, sn = 0;
-		if (xcb_parse_display(NULL, &host, &dn, &sn) != 0) {
-			snprintf(state_path, sizeof(state_path), STATE_PATH_TPL, host, dn, sn);
-		}
-		free(host);
-		FILE *f = fopen(state_path, "w");
-		query_state(f);
-		fclose(f);
-	}
-
 	cleanup();
 	ungrab_buttons();
 	xcb_ewmh_connection_wipe(ewmh);
@@ -237,35 +215,6 @@ int main(int argc, char *argv[])
 	free(ewmh);
 	xcb_flush(dpy);
 	xcb_disconnect(dpy);
-
-	if (restart) {
-		int rargc;
-		for (rargc = 0; rargc < argc; rargc++) {
-			if (streq("-s", argv[rargc])) {
-				break;
-			}
-		}
-
-		int len = rargc + 5;
-		char **rargv = malloc(len * sizeof(char *));
-
-		for (int i = 0; i < rargc; i++) {
-			rargv[i] = argv[i];
-		}
-
-		char sock_fd_arg[SMALEN];
-		snprintf(sock_fd_arg, sizeof(sock_fd_arg), "%i", sock_fd);
-
-		rargv[rargc] = "-s";
-		rargv[rargc + 1] = state_path;
-		rargv[rargc + 2] = "-o";
-		rargv[rargc + 3] = sock_fd_arg;
-		rargv[rargc + 4] = 0;
-
-		exit_status = execvp(*rargv, rargv);
-		free(rargv);
-	}
-
 	close(sock_fd);
 	unlink(socket_path);
 

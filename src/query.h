@@ -28,10 +28,15 @@
 #define PTH_TOK  "/"
 
 typedef enum {
-	DOMAIN_TREE,
-	DOMAIN_MONITOR,
+	DOMAIN_NODES,
+	DOMAIN_NODE,
+	DOMAIN_DESKTOPS,
 	DOMAIN_DESKTOP,
-	DOMAIN_NODE
+	DOMAIN_MONITORS,
+	DOMAIN_MONITOR,
+	DOMAIN_TREE,
+	DOMAIN_HISTORY,
+	DOMAIN_STACK
 } domain_t;
 
 enum {
@@ -44,23 +49,6 @@ enum {
 typedef void (*monitor_printer_t)(monitor_t *m, FILE *rsp);
 typedef void (*desktop_printer_t)(desktop_t *m, FILE *rsp);
 
-void query_state(FILE *rsp);
-void query_monitor(monitor_t *m, FILE *rsp);
-void query_desktop(desktop_t *d, FILE *rsp);
-void query_node(node_t *n, FILE *rsp);
-void query_presel(presel_t *p, FILE *rsp);
-void query_client(client_t *c, FILE *rsp);
-void query_rectangle(xcb_rectangle_t r, FILE *rsp);
-void query_constraints(constraints_t c, FILE *rsp);
-void query_padding(padding_t p, FILE *rsp);
-void query_history(FILE *rsp);
-void query_coordinates(coordinates_t *loc, FILE *rsp);
-void query_stack(FILE *rsp);
-void query_subscribers(FILE *rsp);
-int query_node_ids(coordinates_t *ref, coordinates_t *trg, node_select_t *sel, FILE *rsp);
-int query_node_ids_in(node_t *n, desktop_t *d, monitor_t *m, coordinates_t *ref, coordinates_t *trg, node_select_t *sel, FILE *rsp);
-int query_desktop_ids(coordinates_t *ref, coordinates_t *trg, desktop_select_t *sel, desktop_printer_t printer, FILE *rsp);
-int query_monitor_ids(coordinates_t *ref, coordinates_t *trg, monitor_select_t *sel, monitor_printer_t printer, FILE *rsp);
 void fprint_monitor_id(monitor_t *m, FILE *rsp);
 void fprint_monitor_name(monitor_t *m, FILE *rsp);
 void fprint_desktop_id(desktop_t *d, FILE *rsp);

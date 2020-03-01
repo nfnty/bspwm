@@ -2,9 +2,9 @@ VERCMD  ?= git describe --tags 2> /dev/null
 VERSION := $(shell $(VERCMD) || cat VERSION)
 
 CPPFLAGS += -D_POSIX_C_SOURCE=200809L -DVERSION=\"$(VERSION)\"
-CFLAGS   += -std=c99 -pedantic -Wall -Wextra -DJSMN_STRICT
+CFLAGS   += -std=c99 -pedantic -Wall -Wextra
 LDFLAGS  ?=
-LDLIBS    = $(LDFLAGS) -lm -lxcb -lxcb-util -lxcb-keysyms -lxcb-icccm -lxcb-ewmh -lxcb-randr -lxcb-xinerama -lxcb-shape
+LDLIBS    = $(LDFLAGS) -lm -lxcb -lxcb-util -lxcb-keysyms -lxcb-icccm -lxcb-ewmh -lxcb-randr -lxcb-xinerama -lxcb-shape -ljansson
 
 PREFIX    ?= /usr/local
 BINPREFIX ?= $(PREFIX)/bin
@@ -17,8 +17,8 @@ ZSHCPL    ?= $(PREFIX)/share/zsh/site-functions
 MD_DOCS    = README.md doc/CHANGELOG.md doc/CONTRIBUTING.md doc/INSTALL.md doc/MISC.md doc/TODO.md
 XSESSIONS ?= $(PREFIX)/share/xsessions
 
-WM_SRC   = bspwm.c helpers.c geometry.c jsmn.c settings.c monitor.c desktop.c tree.c stack.c history.c \
-	 events.c pointer.c window.c messages.c parse.c query.c restore.c rule.c ewmh.c subscribe.c
+WM_SRC   = bspwm.c helpers.c geometry.c settings.c monitor.c desktop.c tree.c stack.c history.c \
+	 events.c pointer.c window.c messages.c parse.c query.c rule.c ewmh.c subscribe.c json.c
 WM_OBJ  := $(WM_SRC:.c=.o)
 CLI_SRC  = bspc.c helpers.c
 CLI_OBJ := $(CLI_SRC:.c=.o)

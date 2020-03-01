@@ -172,8 +172,6 @@ bool manage_window(xcb_window_t win, rule_consequence_t *csq, int fd)
 
 	n->vacant = false;
 
-	put_status(SBSC_MASK_NODE_ADD, "node_add 0x%08X 0x%08X 0x%08X 0x%08X\n", m->id, d->id, f!=NULL?f->id:0, win);
-
 	if (f != NULL && f->client != NULL && csq->state != NULL && *(csq->state) == STATE_FLOATING) {
 		c->layer = f->client->layer;
 	}
@@ -222,6 +220,9 @@ bool manage_window(xcb_window_t win, rule_consequence_t *csq, int fd)
 	free(csq->layer);
 	free(csq->state);
 
+	if (exists_subscriber(SBSC_MASK_NODE_MANAGE))
+		put_status(SBSC_MASK_NODE_MANAGE, json_serialize_status_node(m, d, n));
+
 	return true;
 }
 
@@ -235,9 +236,16 @@ void unmanage_window(xcb_window_t win)
 {
 	coordinates_t loc;
 	if (locate_window(win, &loc)) {
-		put_status(SBSC_MASK_NODE_REMOVE, "node_remove 0x%08X 0x%08X 0x%08X\n", loc.monitor->id, loc.desktop->id, win);
+		bool put_status_bool = false;
+		json_t *json;
+		if (exists_subscriber(SBSC_MASK_NODE_UNMANAGE)) {
+			json = json_serialize_status_node(loc.monitor, loc.desktop, loc.node);
+			put_status_bool = true;
+		}
 		remove_node(loc.monitor, loc.desktop, loc.node);
 		arrange(loc.monitor, loc.desktop);
+		if (put_status_bool)
+			put_status(SBSC_MASK_NODE_UNMANAGE, json);
 	} else {
 		for (pending_rule_t *pr = pending_rule_head; pr != NULL; pr = pr->next) {
 			if (pr->win == win) {
@@ -525,7 +533,8 @@ bool move_client(coordinates_t *loc, int dx, int dy)
 		c->floating_rectangle.x = x;
 		c->floating_rectangle.y = y;
 		if (!grabbing) {
-			put_status(SBSC_MASK_NODE_GEOMETRY, "node_geometry 0x%08X 0x%08X 0x%08X %ux%u+%i+%i\n", loc->monitor->id, loc->desktop->id, loc->node->id, rect.width, rect.height, x, y);
+			if (exists_subscriber(SBSC_MASK_NODE_GEOMETRY))
+				put_status(SBSC_MASK_NODE_GEOMETRY, json_serialize_status_node(loc->monitor, loc->desktop, loc->node));
 		}
 		pm = monitor_from_client(c);
 	}
@@ -621,7 +630,8 @@ bool resize_client(coordinates_t *loc, resize_handle_t rh, int dx, int dy, bool 
 			window_move_resize(n->id, x, y, width, height);
 
 			if (!grabbing) {
-				put_status(SBSC_MASK_NODE_GEOMETRY, "node_geometry 0x%08X 0x%08X 0x%08X %ux%u+%i+%i\n", loc->monitor->id, loc->desktop->id, loc->node->id, width, height, x, y);
+				if (exists_subscriber(SBSC_MASK_NODE_GEOMETRY))
+					put_status(SBSC_MASK_NODE_GEOMETRY, json_serialize_status_node(loc->monitor, loc->desktop, loc->node));
 			}
 		} else {
 			arrange(loc->monitor, loc->desktop);
