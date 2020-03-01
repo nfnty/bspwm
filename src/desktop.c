@@ -35,6 +35,7 @@
 #include "desktop.h"
 #include "subscribe.h"
 #include "settings.h"
+#include "string.h"
 #include "json.h"
 
 void focus_desktop(monitor_t *m, desktop_t *d)
