@@ -346,7 +346,7 @@ node_t *insert_node(monitor_t *m, desktop_t *d, node_t *n, node_t *f)
 					c->first_child = f;
 					c->second_child = n;
 				}
-				if (p == NULL || automatic_scheme == SCHEME_LONGEST_SIDE || single_tiled) {
+				if (p == NULL || automatic_scheme == SCHEME_LONGEST_SIDE) {
 					if (f->rectangle.width > f->rectangle.height) {
 						c->split_type = TYPE_VERTICAL;
 					} else {
