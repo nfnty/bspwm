@@ -402,62 +402,58 @@ bool parse_subscriber_mask(char *s, subscriber_mask_t *mask)
 		*mask = SBSC_MASK_DESKTOP;
 	} else if (streq("monitor", s)) {
 		*mask = SBSC_MASK_MONITOR;
-	} else if (streq("pointer_action", s)) {
-		*mask = SBSC_MASK_POINTER_ACTION;
-	} else if (streq("node_add", s)) {
-		*mask = SBSC_MASK_NODE_ADD;
-	} else if (streq("node_remove", s)) {
-		*mask = SBSC_MASK_NODE_REMOVE;
-	} else if (streq("node_swap", s)) {
+	} else if (streq("nodeManage", s)) {
+		*mask = SBSC_MASK_NODE_MANAGE;
+	} else if (streq("nodeUnmanage", s)) {
+		*mask = SBSC_MASK_NODE_UNMANAGE;
+	} else if (streq("nodeSwap", s)) {
 		*mask = SBSC_MASK_NODE_SWAP;
-	} else if (streq("node_transfer", s)) {
+	} else if (streq("nodeTransfer", s)) {
 		*mask = SBSC_MASK_NODE_TRANSFER;
-	} else if (streq("node_focus", s)) {
+	} else if (streq("nodeFocus", s)) {
 		*mask = SBSC_MASK_NODE_FOCUS;
-	} else if (streq("node_presel", s)) {
+	} else if (streq("nodePresel", s)) {
 		*mask = SBSC_MASK_NODE_PRESEL;
-	} else if (streq("node_stack", s)) {
+	} else if (streq("nodeStack", s)) {
 		*mask = SBSC_MASK_NODE_STACK;
-	} else if (streq("node_activate", s)) {
+	} else if (streq("nodeActivate", s)) {
 		*mask = SBSC_MASK_NODE_ACTIVATE;
-	} else if (streq("node_geometry", s)) {
+	} else if (streq("nodeGeometry", s)) {
 		*mask = SBSC_MASK_NODE_GEOMETRY;
-	} else if (streq("node_state", s)) {
+	} else if (streq("nodeState", s)) {
 		*mask = SBSC_MASK_NODE_STATE;
-	} else if (streq("node_flag", s)) {
+	} else if (streq("nodeFlag", s)) {
 		*mask = SBSC_MASK_NODE_FLAG;
-	} else if (streq("node_layer", s)) {
+	} else if (streq("nodeLayer", s)) {
 		*mask = SBSC_MASK_NODE_LAYER;
-	} else if (streq("desktop_add", s)) {
+	} else if (streq("desktopAdd", s)) {
 		*mask = SBSC_MASK_DESKTOP_ADD;
-	} else if (streq("desktop_rename", s)) {
+	} else if (streq("desktopRename", s)) {
 		*mask = SBSC_MASK_DESKTOP_RENAME;
-	} else if (streq("desktop_remove", s)) {
+	} else if (streq("desktopRemove", s)) {
 		*mask = SBSC_MASK_DESKTOP_REMOVE;
-	} else if (streq("desktop_swap", s)) {
+	} else if (streq("desktopSwap", s)) {
 		*mask = SBSC_MASK_DESKTOP_SWAP;
-	} else if (streq("desktop_transfer", s)) {
+	} else if (streq("desktopTransfer", s)) {
 		*mask = SBSC_MASK_DESKTOP_TRANSFER;
-	} else if (streq("desktop_focus", s)) {
+	} else if (streq("desktopFocus", s)) {
 		*mask = SBSC_MASK_DESKTOP_FOCUS;
-	} else if (streq("desktop_activate", s)) {
+	} else if (streq("desktopActivate", s)) {
 		*mask = SBSC_MASK_DESKTOP_ACTIVATE;
-	} else if (streq("desktop_layout", s)) {
+	} else if (streq("desktopLayout", s)) {
 		*mask = SBSC_MASK_DESKTOP_LAYOUT;
-	} else if (streq("monitor_add", s)) {
+	} else if (streq("monitorAdd", s)) {
 		*mask = SBSC_MASK_MONITOR_ADD;
-	} else if (streq("monitor_rename", s)) {
+	} else if (streq("monitorRename", s)) {
 		*mask = SBSC_MASK_MONITOR_RENAME;
-	} else if (streq("monitor_remove", s)) {
+	} else if (streq("monitorRemove", s)) {
 		*mask = SBSC_MASK_MONITOR_REMOVE;
-	} else if (streq("monitor_swap", s)) {
+	} else if (streq("monitorSwap", s)) {
 		*mask = SBSC_MASK_MONITOR_SWAP;
-	} else if (streq("monitor_focus", s)) {
+	} else if (streq("monitorFocus", s)) {
 		*mask = SBSC_MASK_MONITOR_FOCUS;
-	} else if (streq("monitor_geometry", s)) {
+	} else if (streq("monitorGeometry", s)) {
 		*mask = SBSC_MASK_MONITOR_GEOMETRY;
-	} else if (streq("report", s)) {
-		*mask = SBSC_MASK_REPORT;
 	} else {
 		return false;
 	}

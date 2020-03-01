@@ -35,6 +35,7 @@
 #include "desktop.h"
 #include "subscribe.h"
 #include "settings.h"
+#include "json.h"
 
 void focus_desktop(monitor_t *m, desktop_t *d)
 {
@@ -270,6 +271,8 @@ desktop_t *make_desktop(const char *name, uint32_t id)
 
 void rename_desktop(monitor_t *m, desktop_t *d, const char *name)
 {
+	char name_last[SMALEN];
+	strcpy(name_last, d->name);
 
 	snprintf(d->name, sizeof(d->name), "%s", name);
 

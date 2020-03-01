@@ -34,6 +34,7 @@
 #include "pointer.h"
 #include "rule.h"
 #include "events.h"
+#include "json.h"
 
 void handle_event(xcb_generic_event_t *evt)
 {

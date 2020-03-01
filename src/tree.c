@@ -39,6 +39,7 @@
 #include "stack.h"
 #include "window.h"
 #include "tree.h"
+#include "json.h"
 
 void arrange(monitor_t *m, desktop_t *d)
 {
@@ -486,7 +487,7 @@ bool activate_node(monitor_t *m, desktop_t *d, node_t *n)
 	}
 
 	d->focus = n;
-	history_add(m, d, n);
+	history_add(m, d, n, true);
 
 	if (n == NULL) {
 		return true;
