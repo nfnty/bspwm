@@ -329,7 +329,7 @@ typedef struct subscriber_list_t subscriber_list_t;
 struct subscriber_list_t {
 	FILE *stream;
 	char* fifo_path;
-	int field;
+	unsigned int field;
 	int count;
 	subscriber_list_t *prev;
 	subscriber_list_t *next;
