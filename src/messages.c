@@ -1302,8 +1302,20 @@ void cmd_config(char **args, int num, FILE *rsp)
 		}
 		num--, args++;
 	}
-	if (num == 2) {
-		set_setting(trg, *args, *(args + 1), rsp);
+	if (num >= 2) {
+		if (num % 2 != 0) {
+			fail(rsp, "config: Options not in pairs.\n");
+			return;
+		}
+		while (num >= 2) {
+			set_setting(trg, *args, *(args + 1), rsp);
+			num -= 2;
+			args += 2;
+		}
+
+		for (monitor_t *m = mon_head; m != NULL; m = m->next)
+			for (desktop_t *d = m->desk_head; d != NULL; d = d->next)
+				arrange(m, d);
 	} else if (num == 1) {
 		get_setting(trg, *args, rsp);
 	} else {
